@@ -1,182 +1,112 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>수능 공부 진행률 추적기</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 15px;
-            background-color: #f5f5f7;
-            color: #333;
-        }
-        .subject, .total-section {
-            background-color: white;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
-        }
-        .subject-name, .total-title {
-            font-size: 18px;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .progress-container {
-            background-color: #e0e0e0;
-            border-radius: 10px;
-            height: 20px;
-            overflow: hidden;
-        }
-        .progress-bar {
-            height: 100%;
-            text-align: center;
-            color: white;
-            line-height: 20px;
-            font-weight: bold;
-        }
-        input, button {
-            padding: 5px;
-            margin-top: 5px;
-        }
-        .color-국어 { background-color: #FF3B30; }
-        .color-수학 { background-color: #007AFF; }
-        .color-영어 { background-color: #34C759; }
-        .color-동아시아사 { background-color: #FF9500; }
-        .color-세계사 { background-color: #AF52DE; }
+import React, { useState, useEffect } from 'react';
 
-        .total-progress { background-color: #5856D6; }
-    </style>
-</head>
-<body>
-    <h1>수능 공부 진행률 추적기</h1>
-    <div id="subjects"></div>
+const NotionReviewScheduler = () => {
+  const [inputDay, setInputDay] = useState('');
+  const [results, setResults] = useState([]);
+  const [error, setError] = useState('');
 
-    <div class="total-section">
-        <div class="total-title">전체 진행률</div>
-        <div class="progress-container">
-            <div id="total-progress" class="progress-bar total-progress" style="width: 0%;">0%</div>
-        </div>
-    </div>
+  // 주기 정의 (1일, 4일, 7일, 14일, 30일)
+  const reviewCycles = [1, 4, 7, 14, 30];
 
-    <script>
-    const subjects = ['국어', '수학', '영어', '동아시아사', '세계사'];
-
-    function createSubjectHTML(subject) {
-        return `
-        <div id="" class="subject">
-            <div class="subject-name"></div>
-            <div class="pages-info">완료: <span class="completed">0</span> / <span class="total">0</span> 페이지</div>
-            <div class="progress-container">
-                <div class="progress-bar color-" style="width:0%">0%</div>
-            </div>
-            <input type="number" class="total-input" placeholder="총 페이지 추가">
-            <button onclick="addTotalPages('')">총 페이지 추가</button>
-            <input type="number" class="completed-input" placeholder="완료 페이지 추가">
-            <button onclick="addCompleted('')">완료 페이지 추가</button>
-            <button onclick="resetData('')">페이지수 삭제</button>
-        </div>
-        `;
+  const calculateReviewDays = (day) => {
+    // 입력값에서 숫자 추출
+    const match = day.match(/D(\d+)/i);
+    
+    if (!match) {
+      setError('올바른 형식으로 입력해주세요 (예: D7)');
+      setResults([]);
+      return;
     }
-
-    function addTotalPages(subject) {
-        const el = document.getElementById(subject);
-        const additionalPages = parseInt(el.querySelector('.total-input').value);
-        if (!(additionalPages > 0)) {
-            alert('유효한 페이지 수를 입력하세요');
-            return;
-        }
-        const totalEl = el.querySelector('.total');
-        totalEl.textContent = (parseInt(totalEl.textContent) || 0) + additionalPages;
-        el.querySelector('.total-input').value = '';
-
-        updateProgress(subject);
-        saveData(subject);
-        updateTotalProgress();
+    
+    const currentDay = parseInt(match[1], 10);
+    
+    if (isNaN(currentDay) || currentDay <= 0) {
+      setError('양수를 입력해주세요');
+      setResults([]);
+      return;
     }
-
-    function addCompleted(subject) {
-        const el = document.getElementById(subject);
-        const completedInput = parseInt(el.querySelector('.completed-input').value);
-        if (!(completedInput > 0)) {
-            alert('유효한 페이지 수를 입력하세요');
-            return;
-        }
-        let completed = parseInt(el.querySelector('.completed').textContent) || 0;
-        const total = parseInt(el.querySelector('.total').textContent) || 0;
-
-        if (!(total > 0)) {
-            alert('총 페이지를 먼저 등록하세요');
-            return;
-        }
-
-        completed = Math.min(completed + completedInput, total);
-        el.querySelector('.completed').textContent = completed;
-        el.querySelector('.completed-input').value = '';
-
-        updateProgress(subject);
-        saveData(subject);
-        updateTotalProgress();
-    }
-
-    function resetData(subject) {
-        const el = document.getElementById(subject);
-        el.querySelector('.completed').textContent = 0;
-        el.querySelector('.total').textContent = 0;
-        updateProgress(subject);
-        saveData(subject);
-        updateTotalProgress();
-    }
-
-    function updateProgress(subject) {
-        const el = document.getElementById(subject);
-        const completed = parseInt(el.querySelector('.completed').textContent) || 0;
-        const total = parseInt(el.querySelector('.total').textContent) || 0;
-        const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-        const bar = el.querySelector('.progress-bar');
-        bar.style.width = percent + '%';
-        bar.textContent = percent + '%';
-    }
-
-    function updateTotalProgress() {
-        let totalCompleted = 0, totalPages = 0;
-        subjects.forEach(sub => {
-            const el = document.getElementById(sub);
-            totalCompleted += parseInt(el.querySelector('.completed').textContent) || 0;
-            totalPages += parseInt(el.querySelector('.total').textContent) || 0;
-        });
-        const percent = totalPages ? Math.round((totalCompleted / totalPages) * 100) : 0;
-        const totalBar = document.getElementById('total-progress');
-        totalBar.style.width = percent + '%';
-        totalBar.textContent = percent + '%';
-    }
-
-    function saveData(subject) {
-        const el = document.getElementById(subject);
-        localStorage.setItem(subject + '-completed', el.querySelector('.completed').textContent);
-        localStorage.setItem(subject + '-total', el.querySelector('.total').textContent);
-    }
-
-    function loadAllData() {
-        subjects.forEach(subject => {
-            const el = document.getElementById(subject);
-            el.querySelector('.completed').textContent = localStorage.getItem(subject + '-completed') || 0;
-            el.querySelector('.total').textContent = localStorage.getItem(subject + '-total') || 0;
-            updateProgress(subject);
-        });
-        updateTotalProgress();
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {
-        const container = document.getElementById('subjects');
-        subjects.forEach(subject => container.insertAdjacentHTML('beforeend', createSubjectHTML(subject)));
-        loadAllData();
+    
+    setError('');
+    
+    // 이전 복습 일자 계산
+    const reviewDays = reviewCycles.map(cycle => {
+      const reviewDay = currentDay - cycle;
+      return {
+        cycle,
+        reviewDay: reviewDay > 0 ? `D${reviewDay}` : '복습 불필요',
+        current: `D${currentDay}`,
+        isValid: reviewDay > 0
+      };
     });
-    </script>
-</body>
-</html>
+    
+    setResults(reviewDays);
+  };
+
+  return (
+    <div className="bg-gray-900 text-gray-200 min-h-screen p-8 font-sans">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold mb-6 text-white">복습 주기 계산기</h1>
+        
+        <div className="mb-8 flex items-center space-x-4">
+          <div className="relative flex-grow">
+            <input
+              type="text"
+              value={inputDay}
+              onChange={(e) => setInputDay(e.target.value)}
+              placeholder="D7 형식으로 입력하세요"
+              className="w-full bg-gray-800 border border-gray-700 rounded-md py-2 px-4 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <button
+            onClick={() => calculateReviewDays(inputDay)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+          >
+            계산하기
+          </button>
+        </div>
+        
+        {error && (
+          <div className="mb-6 p-4 bg-red-900/30 border border-red-800 rounded-md text-red-200">
+            {error}
+          </div>
+        )}
+        
+        {results.length > 0 && (
+          <div className="border border-gray-700 rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-800">
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-400">복습 주기</th>
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-400">현재 일자</th>
+                  <th className="px-6 py-3 text-left text-sm font-medium text-gray-400">복습 예정 일자</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-700">
+                {results.map((item, index) => (
+                  <tr key={index} className={`hover:bg-gray-800/50 ${index % 2 === 0 ? 'bg-gray-800/20' : ''}`}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{item.cycle}일 전</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{item.current}</td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${item.isValid ? 'text-blue-400' : 'text-gray-500'}`}>
+                      {item.reviewDay}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        
+        <div className="mt-8 text-sm text-gray-500">
+          <p>사용 방법:</p>
+          <ul className="ml-5 mt-2 list-disc space-y-1">
+            <li>복습할 현재 일차를 'D숫자' 형식으로 입력하세요 (예: D7)</li>
+            <li>계산하기 버튼을 클릭하면 1, 4, 7, 14, 30일 주기의 이전 복습 일자가 표시됩니다</li>
+            <li>표에서 각 복습 주기별 복습 예정 일자를 확인할 수 있습니다</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default NotionReviewScheduler;
